@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Экономика Pro: Тренажер</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="./tele-secure.js" defer></script>
+    <style>
+        :root {
+            --bg: #0f172a; --card: #1e293b; --blue: #2563eb;
+            --green: #16a34a; --red: #dc2626; --text: #f1f5f9;
+            --border: #334155;
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; overflow-x: hidden; }
+        .card { background: var(--card); border-radius: 16px; padding: 20px; border: 1px solid var(--border); margin-bottom: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        .hidden { display: none !important; }
+        
+        /* PAYWALL СТИЛИ */
+        #paywall {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 99999; padding: 20px; box-sizing: border-box;
+        }
+        .pay-card { background: var(--card); border: 2px solid var(--blue); padding: 25px; border-radius: 24px; text-align: center; width: 100%; max-width: 360px; }
+        .card-num { background: #000; padding: 15px; border-radius: 12px; font-family: monospace; font-size: 1.1em; color: #fff; margin: 15px 0; border: 1px dashed var(--blue); user-select: all; }
+
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; margin-bottom: 10px; font-size: 1em; color: white; text-decoration: none; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .btn-blue { background: var(--blue); }
+        .btn-gray { background: #334155; }
+        .btn:active { transform: scale(0.96); }
+        
+        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 10px; border: 1px solid var(--border); background: #0f172a; color: white; box-sizing: border-box; font-size: 1em; }
+        .item-box { background: #131d31; padding: 15px; border-radius: 12px; margin-bottom: 10px; border: 1px solid var(--border); transition: 0.2s; }
+        .timer { font-size: 1.8em; text-align: center; color: #38bdf8; font-weight: 800; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+
+<div id="paywall">
+    <div class="pay-card" id="step-1">
+        <h2 style="margin:0;">💎 Доступ закрыт</h2>
+        <p style="color: #94a3b8; font-size: 0.85em; margin: 15px 0;">Оплатите доступ, чтобы разблокировать базу тестов и историю:</p>
+        <div class="card-num">9860 1234 5678 9012</div>
+        <a href="https://t.me/nurislombekm" target="_blank" class="btn btn-blue">Связаться с админом</a>
+        <button class="btn btn-gray" onclick="showStep(2)">Ввести ключ активации</button>
+    </div>
+
+    <div class="pay-card hidden" id="step-2">
+        <h3>Активация</h3>
+        <p id="user-id-display" style="font-size: 0.8em; color: var(--blue); font-weight: bold;"></p>
+        <input type="text" id="input-key" placeholder="КЛЮЧ-ID">
+        <button class="btn btn-blue" onclick="validateKey()">Разблокировать</button>
+        <button class="btn btn-gray" onclick="showStep(1)">Назад</button>
+    </div>
+</div>
+
+<div id="main-app" class="hidden">
+    <div style="text-align: center; margin-bottom: 15px;">
+        <a href="https://t.me/nurislombekm" target="_blank" style="color:var(--blue); text-decoration:none; font-size:0.75em; border:1px solid var(--blue); padding:4px 12px; border-radius:20px;">DEV: @NURISLOMBEKM</a>
+    </div>
+
+    <div id="scr-menu" class="card">
+        <h1 style="text-align: center; margin-top: 0;">Экономика Pro</h1>
+        <p id="tg-info" style="text-align: center; color: #94a3b8; font-size: 0.85em;"></p>
+        
+        <label style="font-size: 0.8em;">Вопросов:</label>
+        <input type="number" id="cfg-count" value="20">
+        
+        <label style="font-size: 0.8em;">Время (сек):</label>
+        <input type="number" id="cfg-time" value="1200">
+
+        <button class="btn btn-blue" onclick="startTest()">⚡ Начать тест</button>
+        <button class="btn btn-gray" onclick="viewSection('base')">📖 База вопросов</button>
+        <button class="btn btn-gray" onclick="viewSection('hist')">📜 История тестов</button>
+    </div>
+
+    <div id="scr-test" class="card hidden">
+        <div id="test-timer" class="timer">00:00</div>
+        <div id="q-text" style="font-weight: bold; margin-bottom: 20px; font-size: 1.1em;"></div>
+        <div id="options-box"></div>
+        <button id="btn-next" class="btn btn-blue hidden" onclick="nextQ()">Далее</button>
+    </div>
+
+    <div id="scr-list" class="card hidden">
+        <h2 id="list-title"></h2>
+        <div id="list-content" style="max-height: 55vh; overflow-y: auto;"></div>
+        <button class="btn btn-blue" onclick="location.reload()" style="margin-top: 20px;">В меню</button>
+    </div>
+
+    <div id="scr-result" class="card hidden">
+        <h1 style="text-align: center;">Финиш!</h1>
+        <div id="res-val" style="text-align: center; font-size: 3em; font-weight: 900; color: var(--blue); margin: 20px 0;"></div>
+        <button class="btn btn-blue" onclick="location.reload()">В меню</button>
+    </div>
+</div>
+
+<script>
+    const SALT = "MY_SECRET_EKO_2026"; 
+    let db = [], session = [], answers = [], current = 0, timer, userId = null, userFull = "Guest";
+
+    window.onload = async () => {
+        if (window.Telegram?.WebApp) {
+            window.Telegram.WebApp.ready();
+            const u = window.Telegram.WebApp.initDataUnsafe.user;
+            if (u) {
+                userId = u.id.toString();
+                userFull = u.first_name + (u.username ? ` (@${u.username})` : "");
+                document.getElementById('user-id-display').innerText = "Ваш ID: " + userId;
+                document.getElementById('tg-info').innerText = "Пользователь: " + userFull;
+                
+                if (localStorage.getItem('access_id') === userId) unlock();
+                if (window.sendVisitNotification) window.sendVisitNotification(userFull);
+            }
+        }
+        fetch('micro_tests.json').then(r => r.json()).then(d => { db = d; });
+    };
+
+    function showStep(s) {
+        document.getElementById('step-1').classList.toggle('hidden', s !== 1);
+        document.getElementById('step-2').classList.toggle('hidden', s !== 2);
+    }
+
+    async function validateKey() {
+        const val = document.getElementById('input-key').value.trim().toUpperCase();
+        if (!userId) return alert("Запустите через ТГ!");
+
+        const msgUint8 = new TextEncoder().encode(userId + SALT);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase().substring(0, 8);
+        
+        if (val === `${hashHex}-${userId}`) {
+            localStorage.setItem('access_id', userId);
+            unlock();
+            setTimeout(() => alert("Доступ активирован!"), 200);
+        } else {
+            alert("Неверный ключ!");
+        }
+    }
+
+    function unlock() {
+        document.getElementById('paywall').style.display = 'none';
+        document.getElementById('main-app').classList.remove('hidden');
+    }
+
+    function viewSection(t) {
+        document.getElementById('scr-menu').classList.add('hidden');
+        document.getElementById('scr-list').classList.remove('hidden');
+        const c = document.getElementById('list-content');
+        if (t === 'base') {
+            document.getElementById('list-title').innerText = "База";
+            c.innerHTML = db.map(q => `<div class="item-box"><b>${q.question}</b><br><span style="color:var(--green)">✓ ${q.options[q.answer]}</span></div>`).join('');
+        } else {
+            document.getElementById('list-title').innerText = "История";
+            const h = JSON.parse(localStorage.getItem('my_history') || '[]');
+            c.innerHTML = h.reverse().map(i => `<div class="item-box" style="display:flex; justify-content:space-between"><span>${i.d}</span><b>${i.s}</b></div>`).join('') || "Пусто";
+        }
+    }
+
+    function startTest() {
+        const num = parseInt(document.getElementById('cfg-count').value);
+        session = [...db].sort(() => 0.5 - Math.random()).slice(0, num);
+        answers = new Array(session.length).fill(null);
+        current = 0;
+        document.getElementById('scr-menu').classList.add('hidden');
+        document.getElementById('scr-test').classList.remove('hidden');
+        runTimer(parseInt(document.getElementById('cfg-time').value));
+        render();
+    }
+
+    function runTimer(s) {
+        clearInterval(timer);
+        let l = s;
+        timer = setInterval(() => {
+            let min = Math.floor(l/60), sec = l%60;
+            document.getElementById('test-timer').innerText = `${min}:${sec < 10 ? '0'+sec : sec}`;
+            if (--l < 0) finish();
+        }, 1000);
+    }
+
+    function render() {
+        const q = session[current];
+        document.getElementById('q-text').innerText = (current+1) + ". " + q.question;
+        const box = document.getElementById('options-box'); box.innerHTML = "";
+        document.getElementById('btn-next').classList.add('hidden');
+        q.options.forEach((opt, i) => {
+            const d = document.createElement('div');
+            d.className = "item-box"; d.innerText = opt; d.style.cursor = "pointer";
+            d.onclick = () => {
+                answers[current] = i;
+                document.querySelectorAll('#options-box .item-box').forEach((el, idx) => {
+                    el.onclick = null;
+                    if (idx === q.answer) el.style.background = "var(--green)";
+                    else if (idx === i) el.style.background = "var(--red)";
+                });
+                document.getElementById('btn-next').classList.remove('hidden');
+            };
+            box.appendChild(d);
+        });
+    }
+
+    function nextQ() { if (++current < session.length) render(); else finish(); }
+
+    function finish() {
+        clearInterval(timer);
+        let ok = 0;
+        session.forEach((q, i) => { if (answers[i] === q.answer) ok++; });
+        const res = ok + " / " + session.length;
+        document.getElementById('res-val').innerText = res;
+        const h = JSON.parse(localStorage.getItem('my_history') || '[]');
+        h.push({d: new Date().toLocaleDateString(), s: res});
+        localStorage.setItem('my_history', JSON.stringify(h));
+        if (window.sendSecureReport) window.sendSecureReport(userFull, ok, session.length);
+        document.getElementById('scr-test').classList.add('hidden');
+        document.getElementById('scr-result').classList.remove('hidden');
+    }
+</script>
+</body>
+</html>
